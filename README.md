@@ -146,3 +146,4 @@ java -cp "tools/junit-platform-console-standalone-1.7.0.jar:bin:lib/*" \
 | **Total**                                  | **10** |
 
 
+# CAPUTRA/S DE SOLUCION EN CONSOLA:
