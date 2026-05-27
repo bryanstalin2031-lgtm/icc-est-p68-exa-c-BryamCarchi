@@ -1,6 +1,42 @@
+import controllers.TournamentController;
+import models.Athlete;
+import models.Club;
+import models.Tournament;
+import test.TournamentTestData;
 
 public class AppTournament {
+        // public static void main(String[] args) {
+                
+        
+        // //**TournamentController controller = new TournamentController();
+        // Tournament[] tournaments = TournamentTestData.createTournaments();
+        // System.out.println("Original");
+        // controller.sortSelectionDes(tournaments);
+        // void imprimirTorneos(tournaments);
+        // int res1 =70;
+        // Tournament resultado1 = controller.binarySearchByTotalStarterPointsFilaB(tournaments, res1);
+        // if(resultado1 != null){
+        //         System.out.println("Encontrado" + resultado1.toString);
+        // }else{
+        //         System.out.println("No encontrado");
 
+        // }
+        // int res2 =33;
+        // Tournament resultado2 = controller.binarySearchByTotalStarterPointsFilaB(tournaments, res2);
+        // if(resultado2 != null){
+        //         System.out.println("Encontrado" + resultado2.toString);
+        // }else{
+        //         System.out.println("No encontrado");
+
+        // }
+        
+        // public void imprimirTorneos(Tournament[] arr){
+        //         for(Tournament t : arr){
+        //                 System.out.println("Torneo : Punto=" + t.getTotalStarterPoints());
+        //         }
+        // }
+
+        
         public static Tournament[] getTournaments() {
                 // Copa Andina = 45
                 Athlete[] condorAthletes = {
@@ -142,3 +178,4 @@ public class AppTournament {
 
         }
 }
+
