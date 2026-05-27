@@ -1,0 +1,124 @@
+name: Evaluacion de Pruebas - Torneos
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Ejecutar pruebas y calcular nota
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v3
+
+      - name: Instalar Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Compilar archivos
+        id: compilar
+        continue-on-error: true
+        run: |
+          mkdir -p bin
+          if javac -cp "lib/*" -d bin $(find src -name "*.java"); then
+            echo "salida=0" >> $GITHUB_ENV
+          else
+            echo "salida=1" >> $GITHUB_ENV
+          fi
+
+      - name: Verificar compilacion
+        if: env.salida == '1'
+        run: |
+          nombre=$(grep '^STUDENT_NAME=' student.env | cut -d '=' -f2 | xargs)
+          correo=$(grep '^STUDENT_EMAIL=' student.env | cut -d '=' -f2 | xargs)
+          fila=$(grep '^FILA_ESTUDIANTE=' student.env | cut -d '=' -f2 | xargs)
+
+          USUARIO=$(echo "$correo" | cut -d '@' -f1)
+          REPO=$(basename "$GITHUB_REPOSITORY")
+          ARCHIVO="$USUARIO-$REPO.txt"
+
+          echo "::warning title=Error de compilacion::El codigo no compilo. Nota final: 0 / 10"
+          {
+            echo "Estudiante: $nombre"
+            echo "Correo: $correo"
+            echo "Fila: $fila"
+            echo "---"
+            echo "Error: No se pudo compilar el codigo"
+            echo "Nota final: 0 / 10"
+          } > "$ARCHIVO"
+
+          echo "ARCHIVO=$ARCHIVO" >> $GITHUB_ENV
+
+      - name: Ejecutar pruebas
+        if: env.salida == '0'
+        continue-on-error: true
+        run: |
+          mkdir -p resultados
+          java -cp "tools/junit-platform-console-standalone-1.7.0.jar:bin:lib/*" \
+            org.junit.platform.console.ConsoleLauncher \
+            --select-class "test.TournamentControllerTest" \
+            --details tree \
+            --disable-ansi-colors \
+            --reports-dir resultados/ \
+          | tee resultados/salida.txt
+
+      - name: Leer nombre, correo y fila del estudiante
+        if: env.salida == '0'
+        id: estudiante
+        run: |
+          nombre=$(grep '^STUDENT_NAME=' student.env | cut -d '=' -f2 | xargs)
+          correo=$(grep '^STUDENT_EMAIL=' student.env | cut -d '=' -f2 | xargs)
+          fila=$(grep '^FILA_ESTUDIANTE=' student.env | cut -d '=' -f2 | xargs | tr '[:lower:]' '[:upper:]')
+          echo "nombre=$nombre" >> $GITHUB_OUTPUT
+          echo "correo=$correo" >> $GITHUB_OUTPUT
+          echo "fila=$fila" >> $GITHUB_OUTPUT
+
+      - name: Calcular nota
+        if: env.salida == '0'
+        run: |
+          PASADAS=$(grep "tests successful" resultados/salida.txt | grep -o '[0-9][0-9]*' | head -n 1 || true)
+          FALLADAS=$(grep "tests failed" resultados/salida.txt | grep -o '[0-9][0-9]*' | head -n 1 || true)
+
+          if [ -z "$PASADAS" ]; then PASADAS=0; fi
+          if [ -z "$FALLADAS" ]; then FALLADAS=0; fi
+
+          TOTAL=$((PASADAS + FALLADAS))
+          PUNTOS_BASE=$((PASADAS * 2))
+
+          if [ "$TOTAL" -eq 0 ]; then
+            NOTA="0.00"
+          else
+            NOTA=$(echo "scale=2; $PUNTOS_BASE * 8 / 6" | bc)
+          fi
+
+          NOMBRE="${{ steps.estudiante.outputs.nombre }}"
+          CORREO="${{ steps.estudiante.outputs.correo }}"
+          FILA="${{ steps.estudiante.outputs.fila }}"
+
+          USUARIO=$(echo "$CORREO" | cut -d '@' -f1)
+          REPO=$(basename "$GITHUB_REPOSITORY")
+          ARCHIVO="$USUARIO-$REPO.txt"
+
+          echo "Estudiante: $NOMBRE" > "$ARCHIVO"
+          echo "Correo: $CORREO" >> "$ARCHIVO"
+          echo "Fila: $FILA" >> "$ARCHIVO"
+          echo "---" >> "$ARCHIVO"
+          echo "Pruebas pasadas: $PASADAS de $TOTAL" >> "$ARCHIVO"
+          echo "Puntaje base: $PUNTOS_BASE / 6" >> "$ARCHIVO"
+          echo "Nota final: $NOTA / 8" >> "$ARCHIVO"
+
+          echo "ARCHIVO=$ARCHIVO" >> $GITHUB_ENV
+          echo "::notice title=Nota Final::$NOMBRE obtuvo $NOTA / 8 - $PASADAS de $TOTAL pruebas - Fila $FILA"
+
+      - name: Subir resultado
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ env.ARCHIVO }}
+          path: ${{ env.ARCHIVO }}
